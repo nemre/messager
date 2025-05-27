@@ -1,0 +1,113 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+)
+
+type Server interface {
+	Start() error
+	Stop() error
+	NewRouter() Router
+}
+
+type Config struct {
+	Host            string
+	Port            uint16
+	IDHeader        string
+	OnListen        func(address string)
+	OnRequestStart  func(ctx RequestContext)
+	OnRequestEnd    func(ctx RequestContext, status uint16)
+	OnRequestError  func(ctx RequestContext, status uint16, message string, err error)
+	OnRequestPanic  func(ctx RequestContext, status uint16, message string, err error, stackTrace string)
+	OnRouteNotFound func(ctx RequestContext)
+}
+
+type server struct {
+	config *Config
+	server *http.Server
+	mux    *http.ServeMux
+}
+
+func New(config Config) Server {
+	mux := http.NewServeMux()
+
+	return &server{
+		config: &config,
+		server: &http.Server{
+			Handler: mux,
+		},
+		mux: mux,
+	}
+}
+
+func (s *server) Start() error {
+	s.server.Handler = s.handleNotFound(s.mux)
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.config.Host, s.config.Port))
+	if err != nil {
+		return fmt.Errorf("net.Listen(): %w", err)
+	}
+
+	if s.config.OnListen != nil {
+		s.config.OnListen(listener.Addr().String())
+	}
+
+	if err := s.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("server.server.Serve(): %w", err)
+	}
+
+	return nil
+}
+
+func (s *server) Stop() error {
+	if err := s.server.Shutdown(context.Background()); err != nil {
+		return fmt.Errorf("server.server.Shutdown(): %w", err)
+	}
+
+	return nil
+}
+
+func (s *server) NewRouter() Router {
+	return &router{
+		mux:            s.mux,
+		idHeader:       s.config.IDHeader,
+		onRequestStart: s.config.OnRequestStart,
+		onRequestEnd:   s.config.OnRequestEnd,
+		onRequestError: s.config.OnRequestError,
+		onRequestPanic: s.config.OnRequestPanic,
+	}
+}
+
+func (s *server) handleNotFound(mux *http.ServeMux) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		ctx := newRequestContext(responseWriter, request, s.config.IDHeader)
+
+		if s.config.OnRequestStart != nil {
+			s.config.OnRequestStart(ctx)
+		}
+
+		_, pattern := mux.Handler(request)
+		if pattern != "" {
+			mux.ServeHTTP(responseWriter, request)
+
+			return
+		}
+
+		responseWriter.Header().Set("Content-Type", "application/json")
+		responseWriter.WriteHeader(http.StatusNotFound)
+
+		_ = json.NewEncoder(responseWriter).Encode(map[string]string{
+			"message": "The requested resource was not found.",
+			"error":   "route not found",
+		})
+
+		if s.config.OnRequestError != nil {
+			s.config.OnRequestError(ctx, uint16(http.StatusNotFound), "The requested resource was not found.", errors.New("route not found"))
+		}
+	})
+}

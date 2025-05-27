@@ -1,0 +1,135 @@
+services:
+  app:
+    build: .
+    ports:
+      - "2025:2025"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    restart: always
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "postgres", "-U", "messager"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: messager
+      POSTGRES_PASSWORD: messager
+      POSTGRES_DB: messager
+    ports:
+      - "5432:5432"
+    command: ["postgres", "-c", "wal_level=logical"]
+    restart: always
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "messager"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    restart: always
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    restart: always
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    restart: always
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 2026:8080
+    depends_on:
+      - kafka
+    environment:
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: "kafka:9092"
+    restart: always
+
+  debezium:
+    image: quay.io/debezium/connect
+    depends_on:
+      - kafka
+      - postgres
+    ports:
+      - "2027:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: debezium_connect_config
+      OFFSET_STORAGE_TOPIC: debezium_connect_offsets
+      STATUS_STORAGE_TOPIC: debezium_connect_statuses
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      PLUGIN_PATH: /kafka/connect
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  debezium-connector-init:
+    image: curlimages/curl:latest
+    depends_on:
+      - debezium
+    entrypoint: >
+      /bin/sh -c "
+      until curl -s http://debezium:8083/connectors; do
+        echo 'Debezium is not ready yet, waiting...';
+        sleep 2;
+      done;
+      curl -X POST -H 'Content-Type: application/json' --data '{
+        \"name\": \"messager-connector\",
+        \"config\": {
+          \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+          \"database.hostname\": \"postgres\",
+          \"database.port\": \"5432\",
+          \"database.user\": \"messager\",
+          \"database.password\": \"messager\",
+          \"database.dbname\": \"messager\",
+          \"database.server.name\": \"messager-db\",
+          \"plugin.name\": \"pgoutput\",
+          \"table.include.list\": \"public.messages\",
+          \"key.converter\": \"org.apache.kafka.connect.json.JsonConverter\",
+          \"value.converter\": \"org.apache.kafka.connect.json.JsonConverter\",
+          \"key.converter.schemas.enable\": \"false\",
+          \"value.converter.schemas.enable\": \"false\",
+          \"topic.prefix\": \"messager\"
+        }
+      }' http://debezium:8083/connectors
+      "
+    restart: "no"
