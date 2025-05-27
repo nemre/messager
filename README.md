@@ -18,7 +18,7 @@ Messager is a high-performance, scalable messaging service built with Go. It pro
 - [Configuration](#-configuration)
 - [Development](#-development)
 - [Message Flow](#-message-flow)
-- [Logging](#-logging)
+- [Logging](#logging)
 - [Security](#-security)
 - [Contributing](#-contributing)
 - [License](#-license)
