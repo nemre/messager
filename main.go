@@ -1,3 +1,10 @@
+// @title Messager API
+// @version 1.0
+// @description Fast & Strong Messaging Tool
+
+// @host localhost:2025
+// @BasePath /
+
 package main
 
 import (

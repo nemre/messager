@@ -164,6 +164,9 @@ docker-compose --version
 
 ## 📚 API Reference
 
+### Swagger
+http://localhost:2025/swagger/index.html
+
 ### Create Message
 ```bash
 curl -X POST http://localhost:2025/messages \

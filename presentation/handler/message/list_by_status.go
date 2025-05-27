@@ -18,14 +18,23 @@ type listByStatusResponse struct {
 }
 
 type listByStatusResponseItem struct {
-	ID        string `json:"id,omitempty"`
-	CreatedAt string `json:"createdAt,omitempty"`
-	UpdatedAt string `json:"updatedAt,omitempty"`
-	Content   string `json:"content,omitempty"`
-	Phone     string `json:"phone,omitempty"`
-	Status    string `json:"status,omitempty"`
+	ID        string `json:"id,omitempty" example:"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"`
+	CreatedAt string `json:"createdAt,omitempty" example:"2023-10-27T10:00:00Z"`
+	UpdatedAt string `json:"updatedAt,omitempty" example:"2023-10-27T10:00:00Z"`
+	Content   string `json:"content,omitempty" example:"Hello from Swagger!"`
+	Phone     string `json:"phone,omitempty" example:"+905551234567"`
+	Status    string `json:"status,omitempty" example:"PENDING"`
 }
 
+// @Summary List messages by status
+// @Description Get a list of messages filtered by their status
+// @Tags messages
+// @Produce json
+// @Param status query string true "Message status (e.g., PENDING, SENT)"
+// @Success 200 {object} listByStatusResponse
+// @Failure 400 {object} server.ErrorResponse "Invalid status parameter"
+// @Failure 500 {object} server.ErrorResponse "Internal server error"
+// @Router /messages [get]
 func (h *handler) listByStatus(ctx server.RequestContext) (any, error) {
 	request := listByStatusRequest{
 		status: ctx.GetQuery("status"),

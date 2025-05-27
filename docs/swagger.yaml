@@ -1,0 +1,161 @@
+basePath: /
+definitions:
+  message.createRequest:
+    properties:
+      content:
+        example: Hello, world!
+        type: string
+      phone:
+        example: "+905551234567"
+        type: string
+    type: object
+  message.createResponse:
+    properties:
+      id:
+        example: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+        type: string
+    type: object
+  message.listByStatusResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/message.listByStatusResponseItem'
+        type: array
+    type: object
+  message.listByStatusResponseItem:
+    properties:
+      content:
+        example: Hello from Swagger!
+        type: string
+      createdAt:
+        example: "2023-10-27T10:00:00Z"
+        type: string
+      id:
+        example: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+        type: string
+      phone:
+        example: "+905551234567"
+        type: string
+      status:
+        example: PENDING
+        type: string
+      updatedAt:
+        example: "2023-10-27T10:00:00Z"
+        type: string
+    type: object
+  message.startJobResponse:
+    properties:
+      started:
+        type: boolean
+    type: object
+  message.stopJobResponse:
+    properties:
+      stopped:
+        type: boolean
+    type: object
+  server.ErrorResponse:
+    properties:
+      error:
+        example: details of the error
+        type: string
+      message:
+        example: Invalid request.
+        type: string
+    type: object
+host: localhost:2025
+info:
+  contact: {}
+  description: Fast & Strong Messaging Tool
+  title: Messager API
+  version: "1.0"
+paths:
+  /messages:
+    get:
+      description: Get a list of messages filtered by their status
+      parameters:
+      - description: Message status (e.g., PENDING, SENT)
+        in: query
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/message.listByStatusResponse'
+        "400":
+          description: Invalid status parameter
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: List messages by status
+      tags:
+      - messages
+    post:
+      consumes:
+      - application/json
+      description: Create a new message with content and phone number
+      parameters:
+      - description: Message object to be created
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/message.createRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/message.createResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Create a new message
+      tags:
+      - messages
+  /messages/jobs:
+    delete:
+      description: Stops the background job that sends pending messages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/message.stopJobResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Stop the message sending job
+      tags:
+      - messages
+    post:
+      description: Starts the background job that sends pending messages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/message.startJobResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      summary: Start the message sending job
+      tags:
+      - messages
+swagger: "2.0"

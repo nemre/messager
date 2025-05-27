@@ -27,6 +27,12 @@ type RequestContext interface {
 	ParseJSONBody(object any) error
 }
 
+// ErrorResponse represents the structure of an error response.
+type ErrorResponse struct {
+	Message string `json:"message" example:"Invalid request."`
+	Error   string `json:"error" example:"details of the error"`
+}
+
 type requestContext struct {
 	responseWriter http.ResponseWriter
 	request        *http.Request
