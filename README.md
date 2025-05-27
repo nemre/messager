@@ -18,7 +18,7 @@ Messager is a high-performance, scalable messaging service built with Go. It pro
 - [Configuration](#-configuration)
 - [Development](#-development)
 - [Message Flow](#-message-flow)
-- [Monitoring & Logging](#-monitoring--logging)
+- [Logging](#-logging)
 - [Security](#-security)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -32,9 +32,10 @@ The application exposes a REST API that allows users to create a message by prov
 Once a job is initiated, it periodically updates the status of messages that are in the pending state. These database changes are captured by Debezium and published to a Kafka topic. A Kafka consumer within the application listens for these changes and triggers an HTTP request to the corresponding client.
 
 The metadata returned from the client is then stored in Redis. This eventual consistency architecture ensures resilience against common trade-offs such as:
-	•	The database being updated, but the HTTP request not being sent.
-	•	The HTTP request being sent, but the database not being updated.
-	•	Duplicate requests being triggered.
+
+- The database being updated, but the HTTP request not being sent.
+- The HTTP request being sent, but the database not being updated.
+- Duplicate requests being triggered.
 
 Thanks to the consumer-based design, the application can scale horizontally by running multiple replicas, enabling faster message processing. The overall architecture is designed with high availability in mind.
 
@@ -252,9 +253,7 @@ messager/
     └── job/                  # Background Jobs
 ```
 
-## 📊 Monitoring & Logging
-
-### Logging
+## Logging
 - Structured JSON logs
 - Log levels: DEBUG, INFO, WARNING, ERROR, FATAL
 - Correlation ID tracking
